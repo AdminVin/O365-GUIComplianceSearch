@@ -43,15 +43,15 @@ foreach ($label in $labels) {
     }
     elseif ($label -eq "Sender Email Notes") {
         $note = New-Object System.Windows.Forms.Label
-        $note.Text = "(Use * for any sender | Wildcard: vincent*)"
-        $note.Location = New-Object System.Drawing.Point(155, $y)
+        $note.Text = "Use * for any sender (OR) Wildcard: vincent*"
+        $note.Location = New-Object System.Drawing.Point(150, $y)
         $note.Size = New-Object System.Drawing.Size(350, 20)
         $form.Controls.Add($note)
         $y += 30
     }
     elseif ($label -eq "Search Term Note") {
         $note = New-Object System.Windows.Forms.Label
-        $note.Text = "(Use * for searching all messages)"
+        $note.Text = "Use * for searching all messages."
         $note.Location = New-Object System.Drawing.Point(155, $y)
         $note.Size = New-Object System.Drawing.Size(350, 20)
         $form.Controls.Add($note)
@@ -106,7 +106,7 @@ foreach ($label in $labels) {
         # Optional Label
         $optionalLbl = New-Object System.Windows.Forms.Label
         $optionalLbl.Text = "(Optional)"
-        $optionalLbl.Location = New-Object System.Drawing.Point(380, $y)
+        $optionalLbl.Location = New-Object System.Drawing.Point(375, $y)
         $optionalLbl.Size = New-Object System.Drawing.Size(80, 20)
         $form.Controls.Add($optionalLbl)
 
@@ -177,7 +177,7 @@ $buttons["End Date"].Add_Click({
 $btnSearch = New-Object System.Windows.Forms.Button
 $btnSearch.Text = "Start Search"
 $btnSearch.Size = New-Object System.Drawing.Size(200, 30)
-$btnSearch.Location = New-Object System.Drawing.Point(200, $y)
+$btnSearch.Location = New-Object System.Drawing.Point(225, $y)
 
 $btnSearch.Add_Click({
     Write-Host "`nCollected Field Values:" -ForegroundColor Cyan
