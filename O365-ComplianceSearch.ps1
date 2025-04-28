@@ -4,171 +4,194 @@ Add-Type -AssemblyName System.Drawing
 
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "Compliance Search"
-$form.Size = New-Object System.Drawing.Size(400, 450)
+$form.Size = New-Object System.Drawing.Size(550, 550)
 $form.StartPosition = "CenterScreen"
 
-$labels = @("Search Name", "Sender Email (* = any)", "Scope (subject/body)", "Search Term", "Start Date", "End Date")
-$textboxes = @{}
+$labels = @(
+    "Search Name",
+    "Sender Email",
+    "Sender Email Notes",
+    "Scope (subject/body)",
+    "Search Term",
+    "Search Term Note",
+    "Start Date",
+    "End Date",
+    "Purge Type",
+    "Delete Search",
+    "Delete Search Note"
+)
+
+$controls = @{}
+$buttons = @{}
 $y = 10
 
 foreach ($label in $labels) {
     $lbl = New-Object System.Windows.Forms.Label
     $lbl.Text = $label
     $lbl.Location = New-Object System.Drawing.Point(10, $y)
-    $lbl.AutoSize = $true
+    $lbl.Size = New-Object System.Drawing.Size(140, 20)
     $form.Controls.Add($lbl)
 
-    $txt = New-Object System.Windows.Forms.TextBox
-    $txt.Size = New-Object System.Drawing.Size(250, 20)
-    $txt.Location = New-Object System.Drawing.Point(120, $y)
-    $form.Controls.Add($txt)
-    $textboxes[$label] = $txt
+    if ($label -eq "Scope (subject/body)") {
+        $dropdown = New-Object System.Windows.Forms.ComboBox
+        $dropdown.Location = New-Object System.Drawing.Point(150, $y)
+        $dropdown.Size = New-Object System.Drawing.Size(150, 20)
+        $dropdown.Items.AddRange(@("subject", "body"))
+        $form.Controls.Add($dropdown)
+        $controls[$label] = $dropdown
+        $y += 40
+    }
+    elseif ($label -eq "Sender Email Notes") {
+        $note = New-Object System.Windows.Forms.Label
+        $note.Text = "(Use * for any sender | Wildcard: vincent*)"
+        $note.Location = New-Object System.Drawing.Point(155, $y)
+        $note.Size = New-Object System.Drawing.Size(350, 20)
+        $form.Controls.Add($note)
+        $y += 30
+    }
+    elseif ($label -eq "Search Term Note") {
+        $note = New-Object System.Windows.Forms.Label
+        $note.Text = "(Use * for searching all messages)"
+        $note.Location = New-Object System.Drawing.Point(155, $y)
+        $note.Size = New-Object System.Drawing.Size(350, 20)
+        $form.Controls.Add($note)
+        $y += 30
+    }
+    elseif ($label -eq "Delete Search Note") {
+        $note = New-Object System.Windows.Forms.Label
+        $note.Text = "Checking 'yes' will delete the content search from the compliance portal after purging."
+        $note.Location = New-Object System.Drawing.Point(155, $y)
+        $note.Size = New-Object System.Drawing.Size(350, 40)
+        $form.Controls.Add($note)
+        $y += 50
+    }
+    elseif ($label -eq "Purge Type") {
+        $chkSoft = New-Object System.Windows.Forms.CheckBox
+        $chkSoft.Text = "SoftDelete"
+        $chkSoft.Location = New-Object System.Drawing.Point(160, $y)
+        $form.Controls.Add($chkSoft)
+        $controls["SoftDelete"] = $chkSoft
 
-    $y += 40
+        $chkHard = New-Object System.Windows.Forms.CheckBox
+        $chkHard.Text = "HardDelete"
+        $chkHard.Location = New-Object System.Drawing.Point(270, $y)
+        $form.Controls.Add($chkHard)
+        $controls["HardDelete"] = $chkHard
+
+        $y += 40
+    }
+    elseif ($label -eq "Delete Search") {
+        $chkDelete = New-Object System.Windows.Forms.CheckBox
+        $chkDelete.Text = "Yes"
+        $chkDelete.Location = New-Object System.Drawing.Point(160, $y)
+        $form.Controls.Add($chkDelete)
+        $controls["Delete Search"] = $chkDelete
+        $y += 40
+    }
+    elseif ($label -in @("Start Date", "End Date")) {
+        $txt = New-Object System.Windows.Forms.TextBox
+        $txt.Location = New-Object System.Drawing.Point(160, $y)
+        $txt.Size = New-Object System.Drawing.Size(140, 20)
+        $txt.ReadOnly = $true
+        $form.Controls.Add($txt)
+        $controls[$label] = $txt
+
+        $btn = New-Object System.Windows.Forms.Button
+        $btn.Text = "Select"
+        $btn.Size = New-Object System.Drawing.Size(50, 20)
+        $btn.Location = New-Object System.Drawing.Point(320, $y)
+        $form.Controls.Add($btn)
+        $buttons[$label] = $btn
+
+        # Optional Label
+        $optionalLbl = New-Object System.Windows.Forms.Label
+        $optionalLbl.Text = "(Optional)"
+        $optionalLbl.Location = New-Object System.Drawing.Point(380, $y)
+        $optionalLbl.Size = New-Object System.Drawing.Size(80, 20)
+        $form.Controls.Add($optionalLbl)
+
+        $y += 40
+    }
+    else {
+        $txt = New-Object System.Windows.Forms.TextBox
+        $txt.Location = New-Object System.Drawing.Point(150, $y)
+        $txt.Size = New-Object System.Drawing.Size(350, 20)
+        $form.Controls.Add($txt)
+        $controls[$label] = $txt
+        $y += 40
+    }
 }
 
-$btnStartDate = New-Object System.Windows.Forms.Button
-$btnStartDate.Text = "Pick Start"
-$btnStartDate.Size = New-Object System.Drawing.Size(80, 20)
-$btnStartDate.Location = New-Object System.Drawing.Point(300, 170)
-$btnStartDate.Add_Click({
+# Calendar button handling
+$buttons["Start Date"].Add_Click({
+    $calendarForm = New-Object System.Windows.Forms.Form
+    $calendarForm.Text = "Select Start Date"
+    $calendarForm.Size = New-Object System.Drawing.Size(250, 280)
+    $calendarForm.StartPosition = "CenterScreen"
+
     $calendar = New-Object System.Windows.Forms.MonthCalendar
     $calendar.MaxSelectionCount = 1
-    $calendar.ShowTodayCircle = $false
-    $popup = New-Object System.Windows.Forms.Form
-    $popup.Text = "Select Start Date"
-    $popup.Size = New-Object System.Drawing.Size(250, 250)
-    $calendar.Dock = "Fill"
-    $popup.Controls.Add($calendar)
-    $popup.Topmost = $true
-    $popup.ShowDialog()
-    $textboxes["Start Date"].Text = $calendar.SelectionStart.ToString("yyyy-MM-dd")
-})
-$form.Controls.Add($btnStartDate)
+    $calendar.Dock = "Top"
+    $calendarForm.Controls.Add($calendar)
 
-$btnEndDate = New-Object System.Windows.Forms.Button
-$btnEndDate.Text = "Pick End"
-$btnEndDate.Size = New-Object System.Drawing.Size(80, 20)
-$btnEndDate.Location = New-Object System.Drawing.Point(300, 210)
-$btnEndDate.Add_Click({
+    $okButton = New-Object System.Windows.Forms.Button
+    $okButton.Text = "OK"
+    $okButton.Size = New-Object System.Drawing.Size(80, 30)
+    $okButton.Location = New-Object System.Drawing.Point(80, 210)
+    $okButton.Add_Click({
+        $controls["Start Date"].Text = $calendar.SelectionStart.ToString("yyyy-MM-dd")
+        $calendarForm.Close()
+    })
+    $calendarForm.Controls.Add($okButton)
+
+    $calendarForm.Topmost = $true
+    $calendarForm.ShowDialog()
+})
+
+$buttons["End Date"].Add_Click({
+    $calendarForm = New-Object System.Windows.Forms.Form
+    $calendarForm.Text = "Select End Date"
+    $calendarForm.Size = New-Object System.Drawing.Size(250, 280)
+    $calendarForm.StartPosition = "CenterScreen"
+
     $calendar = New-Object System.Windows.Forms.MonthCalendar
     $calendar.MaxSelectionCount = 1
-    $calendar.ShowTodayCircle = $false
-    $popup = New-Object System.Windows.Forms.Form
-    $popup.Text = "Select End Date"
-    $popup.Size = New-Object System.Drawing.Size(250, 250)
-    $calendar.Dock = "Fill"
-    $popup.Controls.Add($calendar)
-    $popup.Topmost = $true
-    $popup.ShowDialog()
-    $textboxes["End Date"].Text = $calendar.SelectionStart.ToString("yyyy-MM-dd")
-})
-$form.Controls.Add($btnEndDate)
+    $calendar.Dock = "Top"
+    $calendarForm.Controls.Add($calendar)
 
+    $okButton = New-Object System.Windows.Forms.Button
+    $okButton.Text = "OK"
+    $okButton.Size = New-Object System.Drawing.Size(80, 30)
+    $okButton.Location = New-Object System.Drawing.Point(80, 210)
+    $okButton.Add_Click({
+        $controls["End Date"].Text = $calendar.SelectionStart.ToString("yyyy-MM-dd")
+        $calendarForm.Close()
+    })
+    $calendarForm.Controls.Add($okButton)
+
+    $calendarForm.Topmost = $true
+    $calendarForm.ShowDialog()
+})
+
+# Start Search button
 $btnSearch = New-Object System.Windows.Forms.Button
 $btnSearch.Text = "Start Search"
-$btnSearch.Size = New-Object System.Drawing.Size(360, 30)
-$btnSearch.Location = New-Object System.Drawing.Point(10, 300)
+$btnSearch.Size = New-Object System.Drawing.Size(200, 30)
+$btnSearch.Location = New-Object System.Drawing.Point(200, $y)
+
 $btnSearch.Add_Click({
-    $name = $textboxes["Search Name"].Text.Trim()
-    $fromemail = $textboxes["Sender Email (* = any)"].Text.Trim()
-    $scope = $textboxes["Scope (subject/body)"].Text.Trim().ToLower()
-    $term = $textboxes["Search Term"].Text.Trim()
-    $startDate = $textboxes["Start Date"].Text.Trim()
-    $endDate = $textboxes["End Date"].Text.Trim()
+    Write-Host "`nCollected Field Values:" -ForegroundColor Cyan
 
-    if (!$name -or !$fromemail -or !$scope -or !$startDate -or !$endDate) {
-        [System.Windows.Forms.MessageBox]::Show("Please fill all required fields.","Error",'OK','Error')
-        return
-    }
-
-    if (!(Get-Command Connect-ExchangeOnline -ErrorAction SilentlyContinue)) {
-        Install-Module ExchangeOnlineManagement -Scope CurrentUser -Force
-        Connect-ExchangeOnline
-    } else {
-        Connect-ExchangeOnline
-    }
-
-    if (!(Get-Command Connect-IPPSSession -ErrorAction SilentlyContinue)) {
-        Install-Module ExchangeOnlineComplianceManagement -Scope CurrentUser -Force
-        Connect-IPPSSession
-    } else {
-        Connect-IPPSSession
-    }
-
-    if ($term -eq "*") { $term = $null }
-    if ($term -match '^\*') { $term = $term.TrimStart('*') }
-
-    if ($scope -eq "subject") {
-        if ($fromemail -eq "*") {
-            $query = $term ? "(Subject:$term) (date=$startDate..$endDate)" : "(date=$startDate..$endDate)"
-        } elseif ($fromemail -match '\*') {
-            $query = $term ? "(Subject:$term) (From:$fromemail OR Participants:$fromemail)(date=$startDate..$endDate)" : "(From:$fromemail OR Participants:$fromemail)(date=$startDate..$endDate)"
-        } else {
-            $query = $term ? "(Subject:$term) (From:$fromemail OR Participants:$fromemail)(date=$startDate..$endDate)" : "(From:$fromemail OR Participants:$fromemail)(date=$startDate..$endDate)"
+    foreach ($key in $controls.Keys) {
+        if ($controls[$key] -is [System.Windows.Forms.TextBox] -or $controls[$key] -is [System.Windows.Forms.ComboBox]) {
+            Write-Host ("${key}: " + $controls[$key].Text)
         }
-    } elseif ($scope -eq "body") {
-        if ($fromemail -eq "*") {
-            $query = $term ? "$term (date=$startDate..$endDate)" : "(date=$startDate..$endDate)"
-        } elseif ($fromemail -match '\*') {
-            $query = $term ? "$term (From:$fromemail OR Participants:$fromemail)(date=$startDate..$endDate)" : "(From:$fromemail OR Participants:$fromemail)(date=$startDate..$endDate)"
-        } else {
-            $query = $term ? "$term (From:$fromemail OR Participants:$fromemail)(date=$startDate..$endDate)" : "(From:$fromemail OR Participants:$fromemail)(date=$startDate..$endDate)"
-        }
-    } else {
-        [System.Windows.Forms.MessageBox]::Show("Scope must be 'subject' or 'body'.","Error",'OK','Error')
-        return
-    }
-
-    Write-Host "Search Query: $query" -ForegroundColor Green
-
-    New-ComplianceSearch -Name $name -ExchangeLocation "All" -ContentMatchQuery $query | Out-Null
-    Start-ComplianceSearch -Identity $name
-
-    Write-Host "Searching..."
-    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-    while ((Get-ComplianceSearch $name -ErrorAction SilentlyContinue).Status -ne "Completed") {
-        Start-Sleep -Seconds 1
-    }
-    $stopwatch.Stop()
-
-    Write-Host "Search Completed in $($stopwatch.Elapsed.Minutes) minutes."
-    
-    $search = Get-ComplianceSearch -Identity $name -ErrorAction SilentlyContinue
-    $items = $search.Items
-    $results = $search.SuccessResults
-    $mailboxes = @()
-    if ($results -is [string] -and $results -ne "") {
-        foreach ($line in $results -split '[\r\n]+') {
-            if ($line -match 'Location: (\S+),.+Item count: (\d+)' -and $matches[2] -gt 0) {
-                $mailboxes += $matches[1]
-            }
+        elseif ($controls[$key] -is [System.Windows.Forms.CheckBox]) {
+            Write-Host ("${key}: " + $controls[$key].Checked)
         }
     }
-    Write-Host "Mailboxes:"
-    $mailboxes
-    Write-Host "Total items found: '$items'"
-
-    $purgePrompt = Read-Host "Type 'purge' to delete items, or press Enter to exit"
-    if ($purgePrompt -eq "purge") {
-        New-ComplianceSearchAction -SearchName $name -Purge -PurgeType SoftDelete -Confirm:$false
-        Write-Host "Purging..."
-        Start-Sleep -Seconds 300
-        $deletePrompt = Read-Host "Delete compliance search after purge? (Y/N)"
-        if ($deletePrompt -eq "Y") {
-            Remove-ComplianceSearch -Identity $name -Confirm:$false
-            Write-Host "ComplianceSearch deleted."
-        }
-    } else {
-        $deletePrompt = Read-Host "Delete compliance search? (Y/N)"
-        if ($deletePrompt -eq "Y") {
-            Remove-ComplianceSearch -Identity $name -Confirm:$false
-            Write-Host "ComplianceSearch deleted."
-        }
-    }
-
-    Get-PSSession | Remove-PSSession | Out-Null
 })
+
 $form.Controls.Add($btnSearch)
 
 $form.ShowDialog()
