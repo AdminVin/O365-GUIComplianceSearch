@@ -215,6 +215,15 @@ Connect-IPPSSession
 `$purgeHard = "$($values['HardDelete'])"
 `$deleteSearch = "$($values['Delete Search'])"
 
+Write-Host ("Compliance search started at " + (Get-Date -Format "MM/dd/yyyy hh:mm tt")) -ForegroundColor Green
+Write-Host "`n`nSearch Name: $name" -ForegroundColor Cyan
+Write-Host "Sender Email: $fromemail" -ForegroundColor Cyan
+if ($searchScope) { Write-Host "Scope: $searchScope" -ForegroundColor Cyan }
+if ($searchTerm) { Write-Host "Search Term: $([string]::IsNullOrWhiteSpace($searchTerm) -or ($searchScope -eq 'body' -and $searchTerm -eq '*') ? '* (Wildcard - All Messages)' : $searchTerm)" -ForegroundColor Cyan }
+if ($startDate) { Write-Host "Start Date: $startDate" -ForegroundColor Cyan }
+if ($endDate) { Write-Host "End Date: $endDate" -ForegroundColor Cyan }
+if ($purgeSoft -eq "True" -or $purgeHard -eq "True") { Write-Host "Purge Type: $((if ($purgeHard -eq 'True') { 'HardDelete' } else { 'SoftDelete' }))" -ForegroundColor Cyan }
+if ($deleteSearch -eq "True") { Write-Host "Delete Search: Yes" -ForegroundColor Cyan }
 
 
 if (`$searchTerm -eq "*") { `$searchTerm = `$null }
@@ -238,7 +247,7 @@ if (`$searchScope -eq "subject") {
     }
 }
 
-Write-Host "`nQuery: `$query" -ForegroundColor Cyan
+Write-Host "`nQuery: `$query`n" -ForegroundColor Green
 
 New-ComplianceSearch -Name `$name -ExchangeLocation All -ContentMatchQuery `$query | Out-Null
 Start-ComplianceSearch -Identity `$name
@@ -249,7 +258,7 @@ do {
     Write-Host "." -NoNewline
 } while (`$status -ne "Completed")
 
-Write-Host "`nSearch complete."
+Write-Host "`nSearch complete.`n"
 
 if (`$purgeSoft -eq "True" -or `$purgeHard -eq "True") {
     `$type = if (`$purgeHard -eq "True") { "HardDelete" } else { "SoftDelete" }
