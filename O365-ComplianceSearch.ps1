@@ -44,7 +44,7 @@ foreach ($label in $labels) {
     elseif ($label -eq "Sender Email Notes") {
         $note = New-Object System.Windows.Forms.Label
         $note.Text = "Use * for any sender (OR) Wildcard: vincent*"
-        $note.Location = New-Object System.Drawing.Point(150, $y)
+        $note.Location = New-Object System.Drawing.Point(148, $y)
         $note.Size = New-Object System.Drawing.Size(350, 20)
         $form.Controls.Add($note)
         $y += 30
@@ -52,7 +52,7 @@ foreach ($label in $labels) {
     elseif ($label -eq "Search Term Note") {
         $note = New-Object System.Windows.Forms.Label
         $note.Text = "Use * for searching all messages."
-        $note.Location = New-Object System.Drawing.Point(155, $y)
+        $note.Location = New-Object System.Drawing.Point(148, $y)
         $note.Size = New-Object System.Drawing.Size(350, 20)
         $form.Controls.Add($note)
         $y += 30
@@ -60,7 +60,7 @@ foreach ($label in $labels) {
     elseif ($label -eq "Delete Search Note") {
         $note = New-Object System.Windows.Forms.Label
         $note.Text = "Checking 'yes' will delete the content search from the compliance portal after purging."
-        $note.Location = New-Object System.Drawing.Point(155, $y)
+        $note.Location = New-Object System.Drawing.Point(148, $y)
         $note.Size = New-Object System.Drawing.Size(350, 40)
         $form.Controls.Add($note)
         $y += 50
@@ -68,13 +68,13 @@ foreach ($label in $labels) {
     elseif ($label -eq "Purge Type") {
         $chkSoft = New-Object System.Windows.Forms.CheckBox
         $chkSoft.Text = "SoftDelete"
-        $chkSoft.Location = New-Object System.Drawing.Point(160, $y)
+        $chkSoft.Location = New-Object System.Drawing.Point(155, $y)
         $form.Controls.Add($chkSoft)
         $controls["SoftDelete"] = $chkSoft
 
         $chkHard = New-Object System.Windows.Forms.CheckBox
         $chkHard.Text = "HardDelete"
-        $chkHard.Location = New-Object System.Drawing.Point(270, $y)
+        $chkHard.Location = New-Object System.Drawing.Point(265, $y)
         $form.Controls.Add($chkHard)
         $controls["HardDelete"] = $chkHard
 
@@ -83,14 +83,14 @@ foreach ($label in $labels) {
     elseif ($label -eq "Delete Search") {
         $chkDelete = New-Object System.Windows.Forms.CheckBox
         $chkDelete.Text = "Yes"
-        $chkDelete.Location = New-Object System.Drawing.Point(160, $y)
+        $chkDelete.Location = New-Object System.Drawing.Point(155, $y)
         $form.Controls.Add($chkDelete)
         $controls["Delete Search"] = $chkDelete
         $y += 40
     }
     elseif ($label -in @("Start Date", "End Date")) {
         $txt = New-Object System.Windows.Forms.TextBox
-        $txt.Location = New-Object System.Drawing.Point(160, $y)
+        $txt.Location = New-Object System.Drawing.Point(150, $y)
         $txt.Size = New-Object System.Drawing.Size(140, 20)
         $txt.ReadOnly = $true
         $form.Controls.Add($txt)
@@ -98,8 +98,8 @@ foreach ($label in $labels) {
 
         $btn = New-Object System.Windows.Forms.Button
         $btn.Text = "Select"
-        $btn.Size = New-Object System.Drawing.Size(50, 20)
-        $btn.Location = New-Object System.Drawing.Point(320, $y)
+        $btn.Size = New-Object System.Drawing.Size(60, 20)
+        $btn.Location = New-Object System.Drawing.Point(300, $y)
         $form.Controls.Add($btn)
         $buttons[$label] = $btn
 
@@ -180,18 +180,99 @@ $btnSearch.Size = New-Object System.Drawing.Size(200, 30)
 $btnSearch.Location = New-Object System.Drawing.Point(225, $y)
 
 $btnSearch.Add_Click({
-    Write-Host "`nCollected Field Values:" -ForegroundColor Cyan
-
+    # Collect field values
+    $values = @{}
     foreach ($key in $controls.Keys) {
         if ($controls[$key] -is [System.Windows.Forms.TextBox] -or $controls[$key] -is [System.Windows.Forms.ComboBox]) {
-            Write-Host ("${key}: " + $controls[$key].Text)
+            $values[$key] = $controls[$key].Text
         }
         elseif ($controls[$key] -is [System.Windows.Forms.CheckBox]) {
-            Write-Host ("${key}: " + $controls[$key].Checked)
+            $values[$key] = $controls[$key].Checked
         }
     }
+
+    # Build PowerShell script content
+    $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+    $tempPath = Join-Path $env:TEMP "ComplianceSearch_$timestamp.ps1"
+
+    $script = @"
+if (!(Get-Command -Name Connect-ExchangeOnline -ErrorAction SilentlyContinue)) {
+    Install-Module -Name ExchangeOnlineManagement -Scope CurrentUser -Force
+}
+Connect-ExchangeOnline
+if (!(Get-Command -Name Connect-IPPSSession -ErrorAction SilentlyContinue)) {
+    Install-Module -Name ExchangeOnlineComplianceManagement -Scope CurrentUser -Force
+}
+Connect-IPPSSession
+
+`$name = "$($values['Search Name'])"
+`$fromemail = "$($values['Sender Email'])"
+`$searchScope = "$($values['Scope (subject/body)'])"
+`$searchTerm = "$($values['Search Term'])"
+`$startDate = "$($values['Start Date'])"
+`$endDate = "$($values['End Date'])"
+`$purgeSoft = "$($values['SoftDelete'])"
+`$purgeHard = "$($values['HardDelete'])"
+`$deleteSearch = "$($values['Delete Search'])"
+
+
+
+if (`$searchTerm -eq "*") { `$searchTerm = `$null }
+if (`$searchTerm -match '^\*') { `$searchTerm = `$searchTerm.TrimStart('*') }
+
+if (`$searchScope -eq "subject") {
+    if (`$fromemail -eq "*") {
+        `$query = if (`$searchTerm) { "(Subject:`$searchTerm) (date=`$startDate..`$endDate)" } else { "(date=`$startDate..`$endDate)" }
+    } elseif (`$fromemail -match '\*') {
+        `$query = if (`$searchTerm) { "(Subject:`$searchTerm) (From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" }
+    } else {
+        `$query = if (`$searchTerm) { "(Subject:`$searchTerm) (From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" }
+    }
+} elseif (`$searchScope -eq "body") {
+    if (`$fromemail -eq "*") {
+        `$query = if (`$searchTerm) { "`$searchTerm (date=`$startDate..`$endDate)" } else { "(date=`$startDate..`$endDate)" }
+    } elseif (`$fromemail -match '\*') {
+        `$query = if (`$searchTerm) { "`$searchTerm (From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" }
+    } else {
+        `$query = if (`$searchTerm) { "`$searchTerm (From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" }
+    }
+}
+
+Write-Host "`nQuery: `$query" -ForegroundColor Cyan
+
+New-ComplianceSearch -Name `$name -ExchangeLocation All -ContentMatchQuery `$query | Out-Null
+Start-ComplianceSearch -Identity `$name
+
+do {
+    Start-Sleep 1
+    `$status = (Get-ComplianceSearch -Identity `$name).Status
+    Write-Host "." -NoNewline
+} while (`$status -ne "Completed")
+
+Write-Host "`nSearch complete."
+
+if (`$purgeSoft -eq "True" -or `$purgeHard -eq "True") {
+    `$type = if (`$purgeHard -eq "True") { "HardDelete" } else { "SoftDelete" }
+    Write-Host "`nPurging via `$type..."
+    New-ComplianceSearchAction -SearchName `$name -Purge -PurgeType `$type -Confirm:`$false
+    Start-Sleep -Seconds 5
+    if (`$deleteSearch -eq "True") {
+        Remove-ComplianceSearch -Identity `$name -Confirm:`$false
+        Write-Host "`nSearch deleted."
+    }
+}
+"@
+
+    $script | Set-Content -Path $tempPath -Encoding UTF8
+
+    try {
+        Start-Process -FilePath "pwsh.exe" -ArgumentList "-NoExit", "-File", "`"$tempPath`""
+    } catch {
+        Start-Process -FilePath "powershell.exe" -ArgumentList "-NoExit", "-File", "`"$tempPath`""
+    }
+
+    $form.Close()
 })
 
 $form.Controls.Add($btnSearch)
-
 $form.ShowDialog()
