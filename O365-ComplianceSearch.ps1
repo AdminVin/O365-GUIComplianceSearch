@@ -192,7 +192,8 @@ $btnSearch.Add_Click({
     }
 
     # Build PowerShell script content
-    $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+    Get-ChildItem -Path $env:TEMP -Filter "ComplianceSearch_*.ps1" | Where-Object { $_.LastWriteTime -lt (Get-Date).AddHours(-24) } | Remove-Item -Force -ErrorAction SilentlyContinue
+    $timestamp = Get-Date -Format "yyyy-MM-dd_hhmmtt"
     $tempPath = Join-Path $env:TEMP "ComplianceSearch_$timestamp.ps1"
 
     $script = @"
@@ -215,28 +216,30 @@ $btnSearch.Add_Click({
     `$purgeHard = "$($values['HardDelete'])"
     `$deleteSearch = "$($values['Delete Search'])"
     
+    #################################################################
+    # Search - Setup
     Write-Host ("Compliance search started at " + (Get-Date -Format "MM/dd/yyyy hh:mm tt")) -ForegroundColor Green
-    Write-Host "`n`nSearch Name: `$name" -ForegroundColor White
-    Write-Host "Sender Email: `$fromemail" -ForegroundColor White
-    Write-Host "Scope: `$searchScope" -ForegroundColor White
+    Write-Host "`n`nSearch Name: `$name"
+    Write-Host "Sender Email: `$fromemail"
+    Write-Host "Scope: `$searchScope"
     Write-Host "Search Term: `$(
         if (`$searchScope -eq 'subject' -and `$searchTerm -eq '*') {
             '* (Wildcard - All Messages)'
         } else {
             `$searchTerm
-        })" -ForegroundColor White
+        })"
     
-    if ("`$startDate" -ne "") { Write-Host "Start Date: `$startDate" -ForegroundColor White } else { Write-Host "Start Date: Not Set" -ForegroundColor White }
-    if ("`$endDate" -ne "") { Write-Host "End Date: `$endDate" -ForegroundColor White } else { Write-Host "End Date: Not Set" -ForegroundColor White }
+    if ("`$startDate" -ne "") { Write-Host "Start Date: `$startDate" } else { Write-Host "Start Date: Not Set" }
+    if ("`$endDate" -ne "") { Write-Host "End Date: `$endDate" } else { Write-Host "End Date: Not Set" }
     
     if ("`$purgeSoft" -eq "True" -or "`$purgeHard" -eq "True") {
         `$purgeType = if ("`$purgeHard" -eq "True") { "HardDelete" } else { "SoftDelete" }
-        Write-Host "Purge Type: `$purgeType" -ForegroundColor White
+        Write-Host "Purge Type: `$purgeType"
     } else {
-        Write-Host "Purge Type: None" -ForegroundColor White
+        Write-Host "Purge Type: None"
     }
     
-    if ("`$deleteSearch" -eq "True") { Write-Host "Delete Search: Yes" -ForegroundColor White } else { Write-Host "Delete Search: No" -ForegroundColor White }
+    if ("`$deleteSearch" -eq "True") { Write-Host "Delete Search: Yes" } else { Write-Host "Delete Search: No" }
     
     if ("`$searchTerm" -eq "*") { `$searchTerm = `$null }
     if ("`$searchTerm" -match '^\*') { `$searchTerm = `$searchTerm.TrimStart('*') }
@@ -259,8 +262,13 @@ $btnSearch.Add_Click({
         }
     }
     
+    #################################################################
+    # Search - Start
     Write-Host "`nQuery: `$query`n" -ForegroundColor DarkYellow
     
+    # Timer - Start
+    `$stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+
     New-ComplianceSearch -Name `$name -ExchangeLocation All -ContentMatchQuery `$query | Out-Null
     Start-ComplianceSearch -Identity `$name
     
@@ -270,21 +278,69 @@ $btnSearch.Add_Click({
         Write-Host "." -NoNewline
     } while (`$status -ne "Completed")
     
-    Write-Host "`nSearch complete.`n"
+    #################################################################
+    # Search - Results (Complete)
+    # Timer - Stop
+    `$stopwatch.Stop()
+    `$totalTime = "{0:00}:{1:00}" -f `$stopwatch.Elapsed.Hours, `$stopwatch.Elapsed.Minutes
+    Write-Host "`n`nSearch completed. (Time: `$totalTime)"
+
+    #################################################################
+    # Search - Results (Display)
+    `$search = Get-ComplianceSearch -Identity `$name -ErrorAction SilentlyContinue
+    if (`$null -eq `$search) {
+        Write-Host "Error: Unable to retrieve compliance search details. Please verify the search name." -ForegroundColor Red
+        exit
+    }
+
+    `$items = `$search.Items
+    `$results = `$search.SuccessResults
+    `$mailboxes = @()
+    if (`$results -is [string] -and `$results -ne "") {
+        `$lines = `$results -split '[\r\n]+'
+        foreach (`$line in `$lines) {
+            if (`$line -match 'Location: (\S+),.+Item count: (\d+)' -and `$matches[2] -gt 0) {
+                `$mailboxes += `$matches[1]
+            }
+        }
+    }
+
+    Write-Host "`nMailboxes:"
+    `$mailboxes | ForEach-Object { Write-Host $_ }
+    Write-Host "Total items found '`$items'."
     
+    #################################################################
+    # Search - Results (Purge)
     if ("`$purgeSoft" -eq "True" -or "`$purgeHard" -eq "True") {
         `$type = if ("`$purgeHard" -eq "True") { "HardDelete" } else { "SoftDelete" }
         Write-Host "`nPurging via `$type..."
         New-ComplianceSearchAction -SearchName `$name -Purge -PurgeType `$type -Confirm:`$false
-        Start-Sleep -Seconds 5
+        Start-Sleep -Seconds 300
         if ("`$deleteSearch" -eq "True") {
+            Remove-ComplianceSearch -Identity `$name -Confirm:`$false
+            Write-Host "`nSearch '`$name' deleted."
+        }
+    }
+    
+    if (`$purgeHard -eq "True") {
+    `$type = "HardDelete"
+    } elseif (`$purgeSoft -eq "True") {
+        `$type = "SoftDelete"
+    } else {
+        `$type = $null
+    }
+
+    if (`$type) {
+        Write-Host "`nPurging via `$type..."
+        New-ComplianceSearchAction -SearchName `$name -Purge -PurgeType `$type -Confirm:`$false
+        Start-Sleep -Seconds 5
+        if (`$deleteSearch -eq "True") {
             Remove-ComplianceSearch -Identity `$name -Confirm:`$false
             Write-Host "`nSearch deleted."
         }
     }
 "@
     
-
     $script | Set-Content -Path $tempPath -Encoding UTF8
 
     try {
