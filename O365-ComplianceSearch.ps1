@@ -196,81 +196,94 @@ $btnSearch.Add_Click({
     $tempPath = Join-Path $env:TEMP "ComplianceSearch_$timestamp.ps1"
 
     $script = @"
-if (!(Get-Command -Name Connect-ExchangeOnline -ErrorAction SilentlyContinue)) {
-    Install-Module -Name ExchangeOnlineManagement -Scope CurrentUser -Force
-}
-Connect-ExchangeOnline
-if (!(Get-Command -Name Connect-IPPSSession -ErrorAction SilentlyContinue)) {
-    Install-Module -Name ExchangeOnlineComplianceManagement -Scope CurrentUser -Force
-}
-Connect-IPPSSession
-
-`$name = "$($values['Search Name'])"
-`$fromemail = "$($values['Sender Email'])"
-`$searchScope = "$($values['Scope (subject/body)'])"
-`$searchTerm = "$($values['Search Term'])"
-`$startDate = "$($values['Start Date'])"
-`$endDate = "$($values['End Date'])"
-`$purgeSoft = "$($values['SoftDelete'])"
-`$purgeHard = "$($values['HardDelete'])"
-`$deleteSearch = "$($values['Delete Search'])"
-
-Write-Host ("Compliance search started at " + (Get-Date -Format "MM/dd/yyyy hh:mm tt")) -ForegroundColor Green
-Write-Host "`n`nSearch Name: $name" -ForegroundColor Cyan
-Write-Host "Sender Email: $fromemail" -ForegroundColor Cyan
-if ($searchScope) { Write-Host "Scope: $searchScope" -ForegroundColor Cyan }
-if ($searchTerm) { Write-Host "Search Term: $([string]::IsNullOrWhiteSpace($searchTerm) -or ($searchScope -eq 'body' -and $searchTerm -eq '*') ? '* (Wildcard - All Messages)' : $searchTerm)" -ForegroundColor Cyan }
-if ($startDate) { Write-Host "Start Date: $startDate" -ForegroundColor Cyan }
-if ($endDate) { Write-Host "End Date: $endDate" -ForegroundColor Cyan }
-if ($purgeSoft -eq "True" -or $purgeHard -eq "True") { Write-Host "Purge Type: $((if ($purgeHard -eq 'True') { 'HardDelete' } else { 'SoftDelete' }))" -ForegroundColor Cyan }
-if ($deleteSearch -eq "True") { Write-Host "Delete Search: Yes" -ForegroundColor Cyan }
-
-
-if (`$searchTerm -eq "*") { `$searchTerm = `$null }
-if (`$searchTerm -match '^\*') { `$searchTerm = `$searchTerm.TrimStart('*') }
-
-if (`$searchScope -eq "subject") {
-    if (`$fromemail -eq "*") {
-        `$query = if (`$searchTerm) { "(Subject:`$searchTerm) (date=`$startDate..`$endDate)" } else { "(date=`$startDate..`$endDate)" }
-    } elseif (`$fromemail -match '\*') {
-        `$query = if (`$searchTerm) { "(Subject:`$searchTerm) (From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" }
+    if (!(Get-Command -Name Connect-ExchangeOnline -ErrorAction SilentlyContinue)) {
+        Install-Module -Name ExchangeOnlineManagement -Scope CurrentUser -Force
+    }
+    Connect-ExchangeOnline
+    if (!(Get-Command -Name Connect-IPPSSession -ErrorAction SilentlyContinue)) {
+        Install-Module -Name ExchangeOnlineComplianceManagement -Scope CurrentUser -Force
+    }
+    Connect-IPPSSession
+    
+    `$name = "$($values['Search Name'])"
+    `$fromemail = "$($values['Sender Email'])"
+    `$searchScope = "$($values['Scope (subject/body)'])"
+    `$searchTerm = "$($values['Search Term'])"
+    `$startDate = "$($values['Start Date'])"
+    `$endDate = "$($values['End Date'])"
+    `$purgeSoft = "$($values['SoftDelete'])"
+    `$purgeHard = "$($values['HardDelete'])"
+    `$deleteSearch = "$($values['Delete Search'])"
+    
+    Write-Host ("Compliance search started at " + (Get-Date -Format "MM/dd/yyyy hh:mm tt")) -ForegroundColor Green
+    Write-Host "`n`nSearch Name: `$name" -ForegroundColor White
+    Write-Host "Sender Email: `$fromemail" -ForegroundColor White
+    Write-Host "Scope: `$searchScope" -ForegroundColor White
+    Write-Host "Search Term: `$(
+        if (`$searchScope -eq 'subject' -and `$searchTerm -eq '*') {
+            '* (Wildcard - All Messages)'
+        } else {
+            `$searchTerm
+        })" -ForegroundColor White
+    
+    if ("`$startDate" -ne "") { Write-Host "Start Date: `$startDate" -ForegroundColor White } else { Write-Host "Start Date: Not Set" -ForegroundColor White }
+    if ("`$endDate" -ne "") { Write-Host "End Date: `$endDate" -ForegroundColor White } else { Write-Host "End Date: Not Set" -ForegroundColor White }
+    
+    if ("`$purgeSoft" -eq "True" -or "`$purgeHard" -eq "True") {
+        `$purgeType = if ("`$purgeHard" -eq "True") { "HardDelete" } else { "SoftDelete" }
+        Write-Host "Purge Type: `$purgeType" -ForegroundColor White
     } else {
-        `$query = if (`$searchTerm) { "(Subject:`$searchTerm) (From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" }
+        Write-Host "Purge Type: None" -ForegroundColor White
     }
-} elseif (`$searchScope -eq "body") {
-    if (`$fromemail -eq "*") {
-        `$query = if (`$searchTerm) { "`$searchTerm (date=`$startDate..`$endDate)" } else { "(date=`$startDate..`$endDate)" }
-    } elseif (`$fromemail -match '\*') {
-        `$query = if (`$searchTerm) { "`$searchTerm (From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" }
-    } else {
-        `$query = if (`$searchTerm) { "`$searchTerm (From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" }
+    
+    if ("`$deleteSearch" -eq "True") { Write-Host "Delete Search: Yes" -ForegroundColor White } else { Write-Host "Delete Search: No" -ForegroundColor White }
+    
+    if ("`$searchTerm" -eq "*") { `$searchTerm = `$null }
+    if ("`$searchTerm" -match '^\*') { `$searchTerm = `$searchTerm.TrimStart('*') }
+    
+    if ("`$searchScope" -eq "subject") {
+        if ("`$fromemail" -eq "*") {
+            `$query = if (`$searchTerm) { "(Subject:`$searchTerm) (date=`$startDate..`$endDate)" } else { "(date=`$startDate..`$endDate)" }
+        } elseif ("`$fromemail" -match '\*') {
+            `$query = if (`$searchTerm) { "(Subject:`$searchTerm) (From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" }
+        } else {
+            `$query = if (`$searchTerm) { "(Subject:`$searchTerm) (From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" }
+        }
+    } elseif ("`$searchScope" -eq "body") {
+        if ("`$fromemail" -eq "*") {
+            `$query = if (`$searchTerm) { "`$searchTerm (date=`$startDate..`$endDate)" } else { "(date=`$startDate..`$endDate)" }
+        } elseif ("`$fromemail" -match '\*') {
+            `$query = if (`$searchTerm) { "`$searchTerm (From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" }
+        } else {
+            `$query = if (`$searchTerm) { "`$searchTerm (From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" }
+        }
     }
-}
-
-Write-Host "`nQuery: `$query`n" -ForegroundColor Green
-
-New-ComplianceSearch -Name `$name -ExchangeLocation All -ContentMatchQuery `$query | Out-Null
-Start-ComplianceSearch -Identity `$name
-
-do {
-    Start-Sleep 1
-    `$status = (Get-ComplianceSearch -Identity `$name).Status
-    Write-Host "." -NoNewline
-} while (`$status -ne "Completed")
-
-Write-Host "`nSearch complete.`n"
-
-if (`$purgeSoft -eq "True" -or `$purgeHard -eq "True") {
-    `$type = if (`$purgeHard -eq "True") { "HardDelete" } else { "SoftDelete" }
-    Write-Host "`nPurging via `$type..."
-    New-ComplianceSearchAction -SearchName `$name -Purge -PurgeType `$type -Confirm:`$false
-    Start-Sleep -Seconds 5
-    if (`$deleteSearch -eq "True") {
-        Remove-ComplianceSearch -Identity `$name -Confirm:`$false
-        Write-Host "`nSearch deleted."
+    
+    Write-Host "`nQuery: `$query`n" -ForegroundColor DarkYellow
+    
+    New-ComplianceSearch -Name `$name -ExchangeLocation All -ContentMatchQuery `$query | Out-Null
+    Start-ComplianceSearch -Identity `$name
+    
+    do {
+        Start-Sleep 1
+        `$status = (Get-ComplianceSearch -Identity `$name).Status
+        Write-Host "." -NoNewline
+    } while (`$status -ne "Completed")
+    
+    Write-Host "`nSearch complete.`n"
+    
+    if ("`$purgeSoft" -eq "True" -or "`$purgeHard" -eq "True") {
+        `$type = if ("`$purgeHard" -eq "True") { "HardDelete" } else { "SoftDelete" }
+        Write-Host "`nPurging via `$type..."
+        New-ComplianceSearchAction -SearchName `$name -Purge -PurgeType `$type -Confirm:`$false
+        Start-Sleep -Seconds 5
+        if ("`$deleteSearch" -eq "True") {
+            Remove-ComplianceSearch -Identity `$name -Confirm:`$false
+            Write-Host "`nSearch deleted."
+        }
     }
-}
 "@
+    
 
     $script | Set-Content -Path $tempPath -Encoding UTF8
 
