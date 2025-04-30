@@ -197,15 +197,19 @@ $btnSearch.Add_Click({
     $scope = $values['Scope (subject/body)']
     $searchTerm = $values['Search Term']
 
-    if ([string]::IsNullOrWhiteSpace($searchName) -or
-        [string]::IsNullOrWhiteSpace($senderEmail) -or
-        [string]::IsNullOrWhiteSpace($scope) -or
-        [string]::IsNullOrWhiteSpace($searchTerm)) {
-        [System.Windows.Forms.MessageBox]::Show("All mandatory fields must be filled out.`n`nSearch Name`nSender Email`nScope`nSearch Term`n`nPlease review and submit again.", "Missing Fields", 'OK', 'Error') | Out-Null
+    $missing = @()
+    if ([string]::IsNullOrWhiteSpace($searchName))   { $missing += "Search Name" }
+    if ([string]::IsNullOrWhiteSpace($senderEmail) -or -not ($senderEmail -match '^[\w\.-]+@[\w\.-]+\.\w{2,}$' -or $senderEmail -match '^[\w\.-]+\*$')) { $missing += "Sender Email (blank or invalid format)" }
+    if ([string]::IsNullOrWhiteSpace($scope))        { $missing += "Scope" }
+    if ([string]::IsNullOrWhiteSpace($searchTerm))   { $missing += "Search Term" }
+
+    if ($missing.Count -gt 0) {
+        $message = "The following mandatory fields are missing:`n`n" + ($missing -join "`n") + "`n`nPlease review and submit again."
+        [System.Windows.Forms.MessageBox]::Show($message, "Missing Fields", 'OK', 'Error') | Out-Null
         return
     }
 
-    # Build PowerShell script content
+    # Build PowerShell Script
     Get-ChildItem -Path $env:TEMP -Filter "ComplianceSearch_*.ps1" | Where-Object { $_.LastWriteTime -lt (Get-Date).AddHours(-24) } | Remove-Item -Force -ErrorAction SilentlyContinue
     $timestamp = Get-Date -Format "yyyy-MM-dd_hhmmtt"
     $tempPath = Join-Path $env:TEMP "ComplianceSearch_$timestamp.ps1"
