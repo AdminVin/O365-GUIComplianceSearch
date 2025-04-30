@@ -197,6 +197,8 @@ $btnSearch.Add_Click({
     $tempPath = Join-Path $env:TEMP "ComplianceSearch_$timestamp.ps1"
 
     $script = @"
+    #################################################################
+    # Modules/Connection
     if (!(Get-Command -Name Connect-ExchangeOnline -ErrorAction SilentlyContinue)) {
         Install-Module -Name ExchangeOnlineManagement -Scope CurrentUser -Force
     }
@@ -205,7 +207,29 @@ $btnSearch.Add_Click({
         Install-Module -Name ExchangeOnlineComplianceManagement -Scope CurrentUser -Force
     }
     Connect-IPPSSession
-    
+
+    #################################################################
+    # Functions
+        function Start-SearchSleepProgress {
+    param([int]`$Num)
+    1..`$Num | ForEach-Object {
+        Write-Progress -Activity "Waiting..." -Status "Next status check in `$(`$Num - `$_)s" -PercentComplete (`$_ / `$Num * 100)
+        Start-Sleep 1
+    }
+    Write-Progress -Activity "" -Completed
+    }
+
+    function Start-SleepProgress {
+    param([int]`$Num)
+    1..`$Num | ForEach-Object {
+        Write-Progress -Activity "Sleeping for `$Num seconds" -Status "Remaining:`$(`$Num-`$_)" -PercentComplete (`$_/`$Num*100)
+        Start-Sleep 1
+    }
+    Write-Progress -Activity "Sleeping for `$Num seconds" -Completed
+    }
+
+    #################################################################
+    # Variables
     `$name = "$($values['Search Name'])"
     `$fromemail = "$($values['Sender Email'])"
     `$searchScope = "$($values['Scope (subject/body)'])"
@@ -273,7 +297,7 @@ $btnSearch.Add_Click({
     Start-ComplianceSearch -Identity `$name
     
     do {
-        Start-Sleep 1
+        Start-SearchSleepProgress -Num 5
         `$status = (Get-ComplianceSearch -Identity `$name).Status
         Write-Host "." -NoNewline
     } while (`$status -ne "Completed")
@@ -311,33 +335,23 @@ $btnSearch.Add_Click({
     
     #################################################################
     # Search - Results (Purge)
-    if ("`$purgeSoft" -eq "True" -or "`$purgeHard" -eq "True") {
-        `$type = if ("`$purgeHard" -eq "True") { "HardDelete" } else { "SoftDelete" }
-        Write-Host "`nPurging via `$type..."
-        New-ComplianceSearchAction -SearchName `$name -Purge -PurgeType `$type -Confirm:`$false
-        Start-Sleep -Seconds 300
-        if ("`$deleteSearch" -eq "True") {
-            Remove-ComplianceSearch -Identity `$name -Confirm:`$false
-            Write-Host "`nSearch '`$name' deleted."
-        }
-    }
-    
-    if (`$purgeHard -eq "True") {
-    `$type = "HardDelete"
-    } elseif (`$purgeSoft -eq "True") {
+    if ("`$purgeHard" -eq "True") {
+        `$type = "HardDelete"
+    } elseif ("`$purgeSoft" -eq "True") {
         `$type = "SoftDelete"
     } else {
-        `$type = $null
+        `$type = `$null
     }
 
-    if (`$type) {
+    if ("`$type" -eq "HardDelete" -or "`$type" -eq "SoftDelete") {
         Write-Host "`nPurging via `$type..."
         New-ComplianceSearchAction -SearchName `$name -Purge -PurgeType `$type -Confirm:`$false
         Start-Sleep -Seconds 5
-        if (`$deleteSearch -eq "True") {
-            Remove-ComplianceSearch -Identity `$name -Confirm:`$false
-            Write-Host "`nSearch deleted."
-        }
+    }
+
+    if ("`$deleteSearch" -eq "True") {
+        Remove-ComplianceSearch -Identity `$name -Confirm:`$false
+        Write-Host "`nSearch deleted."
     }
 "@
     
