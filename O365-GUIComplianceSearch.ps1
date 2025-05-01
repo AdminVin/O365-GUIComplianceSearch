@@ -308,7 +308,7 @@ $btnSearch.Add_Click({
     #################################################################
     # Search - Start
     Write-Host "`nQuery: `$query`n" -ForegroundColor DarkYellow
-    Write-Host "`n`n`Search Starting: `$name
+    Write-Host "`nSearch Starting: `$name"
     
     # Timer - Start
     `$stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
