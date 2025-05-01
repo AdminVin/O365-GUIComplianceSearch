@@ -3,7 +3,7 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
 $form = New-Object System.Windows.Forms.Form
-$form.Text = "Compliance Search"
+$form.Text = "O365 - GUI Compliance Search (AdminVin)"
 $form.Size = New-Object System.Drawing.Size(550, 550)
 $form.StartPosition = "CenterScreen"
 
@@ -197,15 +197,19 @@ $btnSearch.Add_Click({
     $scope = $values['Scope (subject/body)']
     $searchTerm = $values['Search Term']
 
-    if ([string]::IsNullOrWhiteSpace($searchName) -or
-        [string]::IsNullOrWhiteSpace($senderEmail) -or
-        [string]::IsNullOrWhiteSpace($scope) -or
-        [string]::IsNullOrWhiteSpace($searchTerm)) {
-        [System.Windows.Forms.MessageBox]::Show("All mandatory fields must be filled out.`n`nSearch Name`nSender Email`nScope`nSearch Term`n`nPlease review and submit again.", "Missing Fields", 'OK', 'Error') | Out-Null
+    $missing = @()
+    if ([string]::IsNullOrWhiteSpace($searchName))   { $missing += "Search Name" }
+    if ([string]::IsNullOrWhiteSpace($senderEmail) -or -not ($senderEmail -match '^[\w\.-]+@[\w\.-]+\.\w{2,}$' -or $senderEmail -match '^[\w\.-]+\*$')) { $missing += "Sender Email (blank or invalid format)" }
+    if ([string]::IsNullOrWhiteSpace($scope))        { $missing += "Scope" }
+    if ([string]::IsNullOrWhiteSpace($searchTerm))   { $missing += "Search Term" }
+
+    if ($missing.Count -gt 0) {
+        $message = "The following mandatory fields are missing:`n`n" + ($missing -join "`n") + "`n`nPlease review and submit again."
+        [System.Windows.Forms.MessageBox]::Show($message, "Missing Fields", 'OK', 'Error') | Out-Null
         return
     }
 
-    # Build PowerShell script content
+    # Build PowerShell Script
     Get-ChildItem -Path $env:TEMP -Filter "ComplianceSearch_*.ps1" | Where-Object { $_.LastWriteTime -lt (Get-Date).AddHours(-24) } | Remove-Item -Force -ErrorAction SilentlyContinue
     $timestamp = Get-Date -Format "yyyy-MM-dd_hhmmtt"
     $tempPath = Join-Path $env:TEMP "ComplianceSearch_$timestamp.ps1"
@@ -304,6 +308,7 @@ $btnSearch.Add_Click({
     #################################################################
     # Search - Start
     Write-Host "`nQuery: `$query`n" -ForegroundColor DarkYellow
+    Write-Host "`n`n`Search Starting: `$name
     
     # Timer - Start
     `$stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
@@ -312,7 +317,7 @@ $btnSearch.Add_Click({
     Start-ComplianceSearch -Identity `$name
     
     do {
-        Start-SearchSleepProgress -Num 5
+        Start-SearchSleepProgress -Num 60
         `$status = (Get-ComplianceSearch -Identity `$name).Status
         Write-Host "." -NoNewline
     } while (`$status -ne "Completed")
@@ -322,7 +327,7 @@ $btnSearch.Add_Click({
     # Timer - Stop
     `$stopwatch.Stop()
     `$totalTime = "{0:00}:{1:00}" -f `$stopwatch.Elapsed.Hours, `$stopwatch.Elapsed.Minutes
-    Write-Host "`n`nSearch completed. (Time: `$totalTime)"
+    Write-Host " - Search completed.`n - Time:`$totalTime"
 
     #################################################################
     # Search - Results (Display)
@@ -333,20 +338,7 @@ $btnSearch.Add_Click({
     }
 
     `$items = `$search.Items
-    `$results = `$search.SuccessResults
-    `$mailboxes = @()
-    if (`$results -is [string] -and `$results -ne "") {
-        `$lines = `$results -split '[\r\n]+'
-        foreach (`$line in `$lines) {
-            if (`$line -match 'Location: (\S+),.+Item count: (\d+)' -and `$matches[2] -gt 0) {
-                `$mailboxes += `$matches[1]
-            }
-        }
-    }
-
-    Write-Host "`nMailboxes:"
-    `$mailboxes | ForEach-Object { Write-Host $_ }
-    Write-Host "Total items found '`$items'."
+    Write-Host " - Items: '`$items'"
     
     #################################################################
     # Search - Results (Purge)
@@ -359,14 +351,14 @@ $btnSearch.Add_Click({
     }
 
     if ("`$type" -eq "HardDelete" -or "`$type" -eq "SoftDelete") {
-        Write-Host "`nPurging via `$type..."
+        Write-Host " - Purging: `$type"
         New-ComplianceSearchAction -SearchName `$name -Purge -PurgeType `$type -Confirm:`$false
-        Start-Sleep -Seconds 5
+        Start-SleepProgress -Num 300
     }
 
     if ("`$deleteSearch" -eq "True") {
         Remove-ComplianceSearch -Identity `$name -Confirm:`$false
-        Write-Host "`nSearch deleted."
+        Write-Host "Search `$name - deleted.`n"
     }
 "@
     

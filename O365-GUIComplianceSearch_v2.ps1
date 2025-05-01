@@ -3,7 +3,7 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
 $form = New-Object System.Windows.Forms.Form
-$form.Text = "Compliance Search"
+$form.Text = "O365 - GUI Compliance Search (AdminVin)"
 $form.Size = New-Object System.Drawing.Size(550, 550)
 $form.StartPosition = "CenterScreen"
 
@@ -308,6 +308,7 @@ $btnSearch.Add_Click({
     #################################################################
     # Search - Start
     Write-Host "`nQuery: `$query`n" -ForegroundColor DarkYellow
+    Write-Host "`n`n`Search Starting: `$name
     
     # Timer - Start
     `$stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
@@ -316,7 +317,7 @@ $btnSearch.Add_Click({
     Start-ComplianceSearch -Identity `$name
     
     do {
-        Start-SearchSleepProgress -Num 5
+        Start-SearchSleepProgress -Num 60
         `$status = (Get-ComplianceSearch -Identity `$name).Status
         Write-Host "." -NoNewline
     } while (`$status -ne "Completed")
@@ -326,7 +327,7 @@ $btnSearch.Add_Click({
     # Timer - Stop
     `$stopwatch.Stop()
     `$totalTime = "{0:00}:{1:00}" -f `$stopwatch.Elapsed.Hours, `$stopwatch.Elapsed.Minutes
-    Write-Host "`n`nSearch completed. (Time: `$totalTime)"
+    Write-Host " - Search completed.`n - Time:`$totalTime"
 
     #################################################################
     # Search - Results (Display)
@@ -337,20 +338,7 @@ $btnSearch.Add_Click({
     }
 
     `$items = `$search.Items
-    `$results = `$search.SuccessResults
-    `$mailboxes = @()
-    if (`$results -is [string] -and `$results -ne "") {
-        `$lines = `$results -split '[\r\n]+'
-        foreach (`$line in `$lines) {
-            if (`$line -match 'Location: (\S+),.+Item count: (\d+)' -and `$matches[2] -gt 0) {
-                `$mailboxes += `$matches[1]
-            }
-        }
-    }
-
-    Write-Host "`nMailboxes:"
-    `$mailboxes | ForEach-Object { Write-Host $_ }
-    Write-Host "Total items found '`$items'."
+    Write-Host " - Items: '`$items'"
     
     #################################################################
     # Search - Results (Purge)
@@ -363,14 +351,14 @@ $btnSearch.Add_Click({
     }
 
     if ("`$type" -eq "HardDelete" -or "`$type" -eq "SoftDelete") {
-        Write-Host "`nPurging via `$type..."
+        Write-Host " - Purging: `$type"
         New-ComplianceSearchAction -SearchName `$name -Purge -PurgeType `$type -Confirm:`$false
-        Start-Sleep -Seconds 5
+        Start-SleepProgress -Num 300
     }
 
     if ("`$deleteSearch" -eq "True") {
         Remove-ComplianceSearch -Identity `$name -Confirm:`$false
-        Write-Host "`nSearch deleted."
+        Write-Host "Search `$name - deleted.`n"
     }
 "@
     
