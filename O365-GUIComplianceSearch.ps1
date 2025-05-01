@@ -370,8 +370,10 @@ $btnSearch.Add_Click({
 
     if ("`$deleteSearch" -eq "True") {
         Remove-ComplianceSearch -Identity `$name -Confirm:`$false
-        Write-Host "Search `$name was deleted.`n" -ForegroundColor Green
+        Write-Host "Search `$name was deleted.`n"
     }
+
+    Write-Host ("`nCompliance search completed at " + (Get-Date -Format "MM/dd/yyyy hh:mm tt") + "`n") -ForegroundColor Green
 "@
     
     $script | Set-Content -Path $tempPath -Encoding UTF8

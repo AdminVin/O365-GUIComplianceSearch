@@ -289,11 +289,23 @@ $btnSearch.Add_Click({
     
     if ("`$searchScope" -eq "subject") {
         if ("`$fromemail" -eq "*") {
-            `$query = if (`$searchTerm) { "(Subject:`$searchTerm) (date=`$startDate..`$endDate)" } else { "(date=`$startDate..`$endDate)" }
+            `$query = if ("`$searchTerm") {
+                if ("`$startDate" -or "`$endDate") { "(Subject:`$searchTerm) (date=`$startDate..`$endDate)" } else { "(Subject:`$searchTerm)" }
+            } else {
+                if ("`$startDate" -or "`$endDate") { "(date=`$startDate..`$endDate)" } else { "*" }
+            }
         } elseif ("`$fromemail" -match '\*') {
-            `$query = if (`$searchTerm) { "(Subject:`$searchTerm) (From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" }
+            `$query = if ("`$searchTerm") {
+                if ("`$startDate" -or "`$endDate") { "(Subject:`$searchTerm) (From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(Subject:`$searchTerm) (From:`$fromemail OR Participants:`$fromemail)" }
+            } else {
+                if ("`$startDate" -or "`$endDate") { "(From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(From:`$fromemail OR Participants:`$fromemail)" }
+            }
         } else {
-            `$query = if (`$searchTerm) { "(Subject:`$searchTerm) (From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" }
+            `$query = if ("`$searchTerm") {
+                if ("`$startDate" -or "`$endDate") { "(Subject:`$searchTerm) (From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(Subject:`$searchTerm) (From:`$fromemail OR Participants:`$fromemail)" }
+            } else {
+                if ("`$startDate" -or "`$endDate") { "(From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(From:`$fromemail OR Participants:`$fromemail)" }
+            }
         }
     } elseif ("`$searchScope" -eq "body") {
         if ("`$fromemail" -eq "*") {
@@ -308,7 +320,7 @@ $btnSearch.Add_Click({
     #################################################################
     # Search - Start
     Write-Host "`nQuery: `$query`n" -ForegroundColor DarkYellow
-    Write-Host "`n`n`Search Starting: `$name
+    Write-Host "`nSearch Starting: `$name"
     
     # Timer - Start
     `$stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
@@ -327,7 +339,7 @@ $btnSearch.Add_Click({
     # Timer - Stop
     `$stopwatch.Stop()
     `$totalTime = "{0:00}:{1:00}" -f `$stopwatch.Elapsed.Hours, `$stopwatch.Elapsed.Minutes
-    Write-Host " - Search completed.`n - Time:`$totalTime"
+    Write-Host "`n - Search completed.`n - Time:`$totalTime"
 
     #################################################################
     # Search - Results (Display)
@@ -358,8 +370,10 @@ $btnSearch.Add_Click({
 
     if ("`$deleteSearch" -eq "True") {
         Remove-ComplianceSearch -Identity `$name -Confirm:`$false
-        Write-Host "Search `$name - deleted.`n"
+        Write-Host "Search `$name was deleted.`n"
     }
+
+    Write-Host ("`nCompliance search completed at " + (Get-Date -Format "MM/dd/yyyy hh:mm tt") + "`n") -ForegroundColor Green
 "@
     
     $script | Set-Content -Path $tempPath -Encoding UTF8
