@@ -319,7 +319,7 @@ $btnSearch.Add_Click({
     
     #################################################################
     # Search - Start
-    Write-Host "`nQuery: `$query`n" -ForegroundColor DarkYellow
+    Write-Host "`nQuery: `$query" -ForegroundColor DarkYellow
     Write-Host "`nSearch Starting: `$name"
     
     # Timer - Start
