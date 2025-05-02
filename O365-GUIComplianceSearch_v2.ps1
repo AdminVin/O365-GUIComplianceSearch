@@ -4,13 +4,15 @@ Add-Type -AssemblyName System.Drawing
 
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "O365 - GUI Compliance Search (AdminVin)"
-$form.Size = New-Object System.Drawing.Size(550, 550)
+$form.Size = New-Object System.Drawing.Size(550, 610)
 $form.StartPosition = "CenterScreen"
 
 $labels = @(
     "Search Name",
     "Sender Email",
     "Sender Email Notes",
+    "Recipient",
+    "Recipient Notes",
     "Scope (subject/body)",
     "Search Term",
     "Search Term Note",
@@ -43,12 +45,28 @@ foreach ($label in $labels) {
     }
     elseif ($label -eq "Sender Email Notes") {
         $note = New-Object System.Windows.Forms.Label
-        $note.Text = "Use * for any sender (OR) Wildcard: vincent*"
+        $note.Text = "Leave blank for any sender (OR) Wildcard: vincent*"
         $note.Location = New-Object System.Drawing.Point(148, $y)
         $note.Size = New-Object System.Drawing.Size(350, 20)
         $form.Controls.Add($note)
         $y += 30
     }
+    elseif ($label -eq "Recipient Notes") {
+        $note = New-Object System.Windows.Forms.Label
+        $note.Text = "Leave blank for any sender (OR) Wildcard: vincent*"
+        $note.Location = New-Object System.Drawing.Point(148, $y)
+        $note.Size = New-Object System.Drawing.Size(380, 30)
+        $form.Controls.Add($note)
+        $y += 30
+    }
+    elseif ($label -eq "Recipient") {
+        $txt = New-Object System.Windows.Forms.TextBox
+        $txt.Location = New-Object System.Drawing.Point(150, $y)
+        $txt.Size = New-Object System.Drawing.Size(350, 20)
+        $form.Controls.Add($txt)
+        $controls[$label] = $txt
+        $y += 40
+    }    
     elseif ($label -eq "Search Term Note") {
         $note = New-Object System.Windows.Forms.Label
         $note.Text = "Use 'subject' and  * for searching all messages."
@@ -251,6 +269,7 @@ $btnSearch.Add_Click({
     `$name = "$($values['Search Name'])"
     `$name = `$name.Substring(0, [Math]::Min(50, `$name.Length))
     `$fromemail = "$($values['Sender Email'])"
+    `$recipient = "$($values['Recipient'])"
     `$searchScope = "$($values['Scope (subject/body)'])"
     `$searchTerm = "$($values['Search Term'])"
     `$startDate = "$($values['Start Date'])"
@@ -263,7 +282,8 @@ $btnSearch.Add_Click({
     # Search - Setup
     Write-Host ("Compliance search started at " + (Get-Date -Format "MM/dd/yyyy hh:mm tt")) -ForegroundColor Green
     Write-Host "`n`nSearch Name: `$name"
-    Write-Host "Sender Email: `$fromemail"
+    if ("`$fromemail" -ne "") { Write-Host "Sender Email: `$fromemail" } else { Write-Host "Sender Email: Not Set / * (Wildcard - All Messages)" }
+    if ("`$recipient" -ne "") { Write-Host "Recipient Email: `$recipient" } else { Write-Host "Recipient Email: Not Set / * (Wildcard - All Messages)" }
     Write-Host "Scope: `$searchScope"
     Write-Host "Search Term: `$(
         if (`$searchScope -eq 'subject' -and `$searchTerm -eq '*') {
@@ -271,55 +291,79 @@ $btnSearch.Add_Click({
         } else {
             `$searchTerm
         })"
-    
     if ("`$startDate" -ne "") { Write-Host "Start Date: `$startDate" } else { Write-Host "Start Date: Not Set" }
     if ("`$endDate" -ne "") { Write-Host "End Date: `$endDate" } else { Write-Host "End Date: Not Set" }
-    
     if ("`$purgeSoft" -eq "True" -or "`$purgeHard" -eq "True") {
         `$purgeType = if ("`$purgeHard" -eq "True") { "HardDelete" } else { "SoftDelete" }
         Write-Host "Purge Type: `$purgeType"
     } else {
         Write-Host "Purge Type: None"
     }
-    
     if ("`$deleteSearch" -eq "True") { Write-Host "Delete Search: Yes" } else { Write-Host "Delete Search: No" }
     
-    if ("`$searchTerm" -eq "*") { `$searchTerm = `$null }
-    if ("`$searchTerm" -match '^\*') { `$searchTerm = `$searchTerm.TrimStart('*') }
-    
+
+    #################################################################
+    # Query - Build senderClause
+    if ("`$fromemail" -eq "" -or "`$fromemail" -eq "*") {
+        `$senderClause = ""
+    } elseif ("`$fromemail" -match "\*") {
+        `$senderClause = "(From:`$fromemail OR Participants:`$fromemail)"
+    } else {
+        `$senderClause = "(From:`$fromemail OR Participants:`$fromemail)"
+    }
+
+    #################################################################
+    # Query - Build recipientClause
+    if ("`$recipient" -eq "" -or "`$recipient" -eq "*") {
+        `$recipientClause = ""
+    } elseif ("`$recipient" -match "\*") {
+        `$recipientClause = "(To:`$recipient OR Participants:`$recipient)"
+    } else {
+        `$recipientClause = "(To:`$recipient OR Participants:`$recipient)"
+    }
+
+    #################################################################
+    # Query - Build searchTermClause
     if ("`$searchScope" -eq "subject") {
-        if ("`$fromemail" -eq "*") {
-            `$query = if ("`$searchTerm") {
-                if ("`$startDate" -or "`$endDate") { "(Subject:`$searchTerm) (date=`$startDate..`$endDate)" } else { "(Subject:`$searchTerm)" }
-            } else {
-                if ("`$startDate" -or "`$endDate") { "(date=`$startDate..`$endDate)" } else { "*" }
-            }
-        } elseif ("`$fromemail" -match '\*') {
-            `$query = if ("`$searchTerm") {
-                if ("`$startDate" -or "`$endDate") { "(Subject:`$searchTerm) (From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(Subject:`$searchTerm) (From:`$fromemail OR Participants:`$fromemail)" }
-            } else {
-                if ("`$startDate" -or "`$endDate") { "(From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(From:`$fromemail OR Participants:`$fromemail)" }
-            }
+        if ("`$searchTerm" -eq "" -or "`$searchTerm" -eq "*") {
+            `$searchTermClause = ""
         } else {
-            `$query = if ("`$searchTerm") {
-                if ("`$startDate" -or "`$endDate") { "(Subject:`$searchTerm) (From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(Subject:`$searchTerm) (From:`$fromemail OR Participants:`$fromemail)" }
-            } else {
-                if ("`$startDate" -or "`$endDate") { "(From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(From:`$fromemail OR Participants:`$fromemail)" }
-            }
+            `$searchTermClause = "(Subject:`$searchTerm)"
         }
     } elseif ("`$searchScope" -eq "body") {
-        if ("`$fromemail" -eq "*") {
-            `$query = if (`$searchTerm) { "`$searchTerm (date=`$startDate..`$endDate)" } else { "(date=`$startDate..`$endDate)" }
-        } elseif ("`$fromemail" -match '\*') {
-            `$query = if (`$searchTerm) { "`$searchTerm (From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" }
+        if ("`$searchTerm" -eq "" -or "`$searchTerm" -eq "*") {
+            `$searchTermClause = ""
         } else {
-            `$query = if (`$searchTerm) { "`$searchTerm (From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" }
+            `$searchTermClause = "`$searchTerm"
         }
     }
+
+    #################################################################
+    # Query - Build dateClause
+    if ("`$startDate" -or "`$endDate") {
+        `$dateClause = "(date=`$startDate..`$endDate)"
+    } else {
+        `$dateClause = ""
+    }
+
+    #################################################################
+    # Query - Combine all clauses
+    `$queryParts = @()
+    if ("`$searchTermClause")   { `$queryParts += "`$searchTermClause" }
+    if ("`$senderClause")       { `$queryParts += "`$senderClause" }
+    if ("`$recipientClause")    { `$queryParts += "`$recipientClause" }
+    if ("`$dateClause")         { `$queryParts += "`$dateClause" }
+
+    if (`$queryParts.Count -eq 0) {
+        `$query = "*"
+    } else {
+        `$query = (`$queryParts -join " ")
+    }
+
     
     #################################################################
     # Search - Start
-    Write-Host "`nQuery: `$query`n" -ForegroundColor DarkYellow
+    Write-Host "`nQuery: `$query" -ForegroundColor DarkYellow
     Write-Host "`nSearch Starting: `$name"
     
     # Timer - Start
