@@ -418,6 +418,12 @@ $btnSearch.Add_Click({
     }
 
     Write-Host ("`nCompliance search completed at " + (Get-Date -Format "MM/dd/yyyy hh:mm tt") + "`n") -ForegroundColor Green
+
+    # Cleanup
+    # Exchange Online
+    `$null = Disconnect-ExchangeOnline -Confirm:`$false
+    # Purview / Security & Compliance
+    `$null = Disconnect-IPPSession
 "@
     
     $script | Set-Content -Path $tempPath -Encoding UTF8
