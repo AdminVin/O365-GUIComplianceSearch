@@ -378,8 +378,6 @@ $btnSearch.Add_Click({
     # Cleanup
     # Exchange Online
     `$null = Disconnect-ExchangeOnline -Confirm:`$false
-    # Purview / Security & Compliance
-    `$null = Disconnect-IPPSession
 "@
     
     $script | Set-Content -Path $tempPath -Encoding UTF8
