@@ -199,7 +199,7 @@ $btnSearch.Add_Click({
 
     $missing = @()
     if ([string]::IsNullOrWhiteSpace($searchName))   { $missing += "Search Name" }
-    if ([string]::IsNullOrWhiteSpace($senderEmail) -or -not ($senderEmail -eq '*' -or $senderEmail -match '^[\w\.-]+@[\w\.-]+\.\w{2,}$' -or $senderEmail -match '^[\w\.-]+\*$')) {
+    if ([string]::IsNullOrWhiteSpace($senderEmail) -or -not ($senderEmail -eq '*' -or $senderEmail -match '^[^@\s]+@[^@\s]+\.[^@\s]+$' -or $senderEmail -match '^[^@\s]+\*$')) {
     $missing += "Sender Email (blank or invalid format)"}
     if ([string]::IsNullOrWhiteSpace($scope))        { $missing += "Scope" }
     if ([string]::IsNullOrWhiteSpace($searchTerm))   { $missing += "Search Term" }
