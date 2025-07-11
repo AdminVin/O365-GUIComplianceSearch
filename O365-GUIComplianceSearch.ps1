@@ -191,7 +191,7 @@ $btnSearch.Add_Click({
         }
     }
 
-    # Mandatory field check
+    # Field Check
     $searchName = $values['Search Name']
     $senderEmail = $values['Sender Email']
     $scope = $values['Scope (subject/body)']
@@ -259,6 +259,8 @@ $btnSearch.Add_Click({
     `$purgeSoft = "$($values['SoftDelete'])"
     `$purgeHard = "$($values['HardDelete'])"
     `$deleteSearch = "$($values['Delete Search'])"
+    `$query = "Logic needed"
+
     
     #################################################################
     # Search - Setup
@@ -287,23 +289,24 @@ $btnSearch.Add_Click({
     
     if ("`$searchTerm" -eq "*") { `$searchTerm = `$null }
     if ("`$searchTerm" -match '^\*') { `$searchTerm = `$searchTerm.TrimStart('*') }
+    `$searchTerm = `$searchTerm.Trim()
     
     if ("`$searchScope" -eq "subject") {
         if ("`$fromemail" -eq "*") {
             `$query = if ("`$searchTerm") {
-                if ("`$startDate" -or "`$endDate") { "(Subject:`$searchTerm) (date=`$startDate..`$endDate)" } else { "(Subject:`$searchTerm)" }
+                if ("`$startDate" -or "`$endDate") { "(Subject:`$searchTerm OR Subject:`$(`$searchTerm -replace ' ', '_')) (date=`$startDate..`$endDate)" } else { "(Subject:`$searchTerm OR Subject:`$(`$searchTerm -replace ' ', '_'))" }
             } else {
                 if ("`$startDate" -or "`$endDate") { "(date=`$startDate..`$endDate)" } else { "*" }
             }
         } elseif ("`$fromemail" -match '\*') {
             `$query = if ("`$searchTerm") {
-                if ("`$startDate" -or "`$endDate") { "(Subject:`$searchTerm) (From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(Subject:`$searchTerm) (From:`$fromemail OR Participants:`$fromemail)" }
+                if ("`$startDate" -or "`$endDate") { "(Subject:`$searchTerm OR Subject:`$(`$searchTerm -replace ' ', '_')) (From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(Subject:`$searchTerm OR Subject:`$(`$searchTerm -replace ' ', '_')) (From:`$fromemail OR Participants:`$fromemail)" }
             } else {
                 if ("`$startDate" -or "`$endDate") { "(From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(From:`$fromemail OR Participants:`$fromemail)" }
             }
         } else {
             `$query = if ("`$searchTerm") {
-                if ("`$startDate" -or "`$endDate") { "(Subject:`$searchTerm) (From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(Subject:`$searchTerm) (From:`$fromemail OR Participants:`$fromemail)" }
+                if ("`$startDate" -or "`$endDate") { "(Subject:`$searchTerm OR Subject:`$(`$searchTerm -replace ' ', '_')) (From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(Subject:`$searchTerm OR Subject:`$(`$searchTerm -replace ' ', '_')) (From:`$fromemail OR Participants:`$fromemail)" }
             } else {
                 if ("`$startDate" -or "`$endDate") { "(From:`$fromemail OR Participants:`$fromemail)(date=`$startDate..`$endDate)" } else { "(From:`$fromemail OR Participants:`$fromemail)" }
             }
