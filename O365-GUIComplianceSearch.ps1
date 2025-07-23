@@ -289,7 +289,7 @@ $btnSearch.Add_Click({
     
     if ("`$searchTerm" -eq "*") { `$searchTerm = `$null }
     if ("`$searchTerm" -match '^\*') { `$searchTerm = `$searchTerm.TrimStart('*') }
-    `$searchTerm = `$searchTerm.Trim()
+    if (`$searchTerm) { `$searchTerm = `$searchTerm.Trim() }
     
     if ("`$searchScope" -eq "subject") {
         if ("`$fromemail" -eq "*") {
