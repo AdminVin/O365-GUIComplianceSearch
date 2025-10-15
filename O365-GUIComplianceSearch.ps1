@@ -1,3 +1,17 @@
+<#
+[>] Change Log
+2025-10-15 - v1.1
+    - Added "-EnableSearchOnlySession" to resolve purge errors.
+2025-04-27 - v1.0
+    - Initial Release.
+#>
+
+<# Prerequ#>
+# Exchange Online
+if (!(Get-Module -Name ExchangeOnlineManagement -ListAvailable)) {
+    Install-Module ExchangeOnlineManagement -Scope AllUsers -Force -AllowClobber
+}
+
 # GUI Setup
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
@@ -225,7 +239,7 @@ $btnSearch.Add_Click({
     if (!(Get-Command -Name Connect-IPPSSession -ErrorAction SilentlyContinue)) {
         Install-Module -Name ExchangeOnlineComplianceManagement -Scope CurrentUser -Force
     }
-    Connect-IPPSSession
+    Connect-IPPSSession -EnableSearchOnlySession
 
     #################################################################
     # Functions
