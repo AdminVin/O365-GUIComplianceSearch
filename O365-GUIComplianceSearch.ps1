@@ -6,12 +6,6 @@
     - Initial Release.
 #>
 
-<# Prerequ#>
-# Exchange Online
-if (!(Get-Module -Name ExchangeOnlineManagement -ListAvailable)) {
-    Install-Module ExchangeOnlineManagement -Scope AllUsers -Force -AllowClobber
-}
-
 # GUI Setup
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
