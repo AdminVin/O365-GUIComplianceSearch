@@ -11,7 +11,7 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
 $form = New-Object System.Windows.Forms.Form
-$form.Text = "O365 - GUI Compliance Search (AdminVin)"
+$form.Text = "O365 - GUI Compliance Search"
 $form.Size = New-Object System.Drawing.Size(550, 550)
 $form.StartPosition = "CenterScreen"
 
